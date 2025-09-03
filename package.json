@@ -1,0 +1,9 @@
+{
+  "name": "clerkr",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "openai": "^4.58.1",
+    "pg": "^8.11.5"
+  }
+}
