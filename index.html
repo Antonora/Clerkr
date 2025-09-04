@@ -432,38 +432,39 @@ async function maybeAddTaskFromReply(reply) {
 sendBtn.onclick = sendChat;
 chatInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') sendChat(); });
 
-/* ===== Speech-to-text (MVP via Web Speech API) ===== */
-let recognizer = null;
-if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognizer = new SR();
-  recognizer.lang = 'sv-SE';
-  recognizer.interimResults = false;
-  recognizer.maxAlternatives = 1;
+  /* ===== Speech-to-text (MVP via Web Speech API) ===== */
+  let recognizer = null;
+  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognizer = new SR();
+    recognizer.lang = 'sv-SE';
+    recognizer.interimResults = false;
+    recognizer.maxAlternatives = 1;
 
-  recognizer.onresult = (e) => {
-    const text = e.results?.[0]?.[0]?.transcript || '';
-    if (text) { chatInput.value = text; chatInput.focus(); }
-    micBtn.textContent = '🎤';
-  };
-  recognizer.onstart = ()=> { micBtn.textContent = '■'; };
-  recognizer.onend = ()=> { micBtn.textContent = '🎤'; };
-  recognizer.onerror = ()=> { micBtn.textContent = '🎤'; toast('Mikrofonfel'); };
-  micBtn.onclick = ()=> { try { recognizer.start(); } catch {} };
-} else {
-  micBtn.disabled = true;
-  micBtn.title = 'Inte stödd i denna browser';
-}
-</script>
+    recognizer.onresult = (e) => {
+      const text = e.results?.[0]?.[0]?.transcript || '';
+      if (text) { chatInput.value = text; chatInput.focus(); }
+      micBtn.textContent = '🎤';
+    };
+    recognizer.onstart = ()=> { micBtn.textContent = '■'; };
+    recognizer.onend = ()=> { micBtn.textContent = '🎤'; };
+    recognizer.onerror = ()=> { micBtn.textContent = '🎤'; toast('Mikrofonfel'); };
+    micBtn.onclick = ()=> { try { recognizer.start(); } catch {} };
+  } else {
+    micBtn.disabled = true;
+    micBtn.title = 'Inte stödd i denna browser';
+  }
 
-</script>
-// init
-loadTasks();
-renderPhaseBadge();
-setInterval(renderPhaseBadge, 60 * 1000);
-// valfritt: kör en välkomstrad i chatten
-chatHistory.push({ role:'assistant', content:'Hej! Säg vad du behöver. Lägg till uppgifter genom att skriva “lägg till …”.' });
-renderChat();
+  // ===== init =====
+  loadTasks();
+  renderPhaseBadge();
+  setInterval(renderPhaseBadge, 60 * 1000);
+
+  chatHistory.push({
+    role: 'assistant',
+    content: 'Hej! Säg vad du behöver. Lägg till uppgifter genom att skriva "lägg till …".'
+  });
+  renderChat();
 </script>
 </body>
 </html>
