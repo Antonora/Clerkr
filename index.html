@@ -193,28 +193,34 @@ document.getElementById('tabs').onclick = (ev)=>{
 };
 document.getElementById('search').oninput = (ev)=>{ currentQuery = ev.target.value || ''; renderTasks(); };
 
-document.getElementById('f').onsubmit = async (ev)=>{
+document.getElementById('f').onsubmit = async (ev) => {
   ev.preventDefault();
+
   const fd = new FormData(ev.target);
   const body = {
     title: fd.get('title'),
     notes: fd.get('notes') || null
   };
+
   const msg = document.getElementById('fmsg');
   msg.textContent = 'Skickar…';
-  try{
+
+  try {
     await api('/api/tasks', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    msg.textContent = 'Skapad ✅ (AI berikar strax)';
+
+    msg.textContent = 'Skapad ✅';
     ev.target.reset();
-    setTimeout(()=>loadTasks(true), 1200); // hämta listan igen
-  }catch(e){
-    msg.textContent = e.message; msg.className='danger';
+    await loadTasks(true); // uppdatera direkt – AI klart på servern
+  } catch (e) {
+    msg.textContent = e.message;
+    msg.className = 'danger';
   }
 };
+
 
 
 document.getElementById('what').onclick = async ()=>{
