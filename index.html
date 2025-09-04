@@ -304,16 +304,80 @@ const micBtn = document.getElementById('micBtn');
 let chatHistory = []; // [{role:'user'|'assistant', content:'...'}]
 
 function renderChat() {
-  chatEl.innerHTML = chatHistory.map(m => `
-    <div style="margin:6px 0; display:flex; ${m.role==='user'?'justify-content:flex-end':''}">
-      <div style="max-width:80%; padding:8px 10px; border:1px solid #eee; border-radius:10px; background:${m.role==='user'?'#111':'#fafafa'}; color:${m.role==='user'?'#fff':'#111'}">
-        ${escapeHtml(m.content).replace(/\n/g,'<br/>')}
+  chatEl.innerHTML = chatHistory.map((m, idx) => {
+    const isAssistant = m.role === 'assistant';
+    const contentHtml = escapeHtml(m.content).replace(/\n/g, '<br/>');
+
+    return `
+      <div style="margin:6px 0; display:flex; ${m.role==='user'?'justify-content:flex-end':''}">
+        <div style="max-width:80%; padding:8px 10px; border:1px solid #eee; border-radius:10px; background:${m.role==='user'?'#111':'#fafafa'}; color:${m.role==='user'?'#fff':'#111'}">
+          <div class="msg" data-idx="${idx}">${contentHtml}</div>
+          ${isAssistant ? `
+            <div style="margin-top:6px; display:flex; gap:6px">
+              <button class="ghost" data-add-from="bubble" data-idx="${idx}" title="Skapa task av detta">➕ Skapa task</button>
+            </div>
+          ` : ``}
+        </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
   chatEl.scrollTop = chatEl.scrollHeight;
+
+  // Wire up "Skapa task"-knappar
+  chatEl.querySelectorAll('button[data-add-from]').forEach(btn => {
+    btn.onclick = async () => {
+      const idx = Number(btn.getAttribute('data-idx'));
+      const raw = chatHistory[idx]?.content || '';
+      const title = inferTitleFromText(raw);
+      const sel = getSelectionTextIn(chatEl); // om du markerat text i bubblan
+      const useTitle = (sel && sel.trim()) || title;
+
+      const finalTitle = prompt('Titel för task:', useTitle || '');
+      if (!finalTitle || !finalTitle.trim()) return;
+
+      const notes = prompt('Notes (valfritt):', '');
+      try {
+        await api('/api/tasks', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ title: finalTitle.trim(), notes: notes || null })
+        });
+        toast('Task skapad ✅');
+        await loadTasks(true);
+      } catch (e) {
+        alert('Kunde inte skapa task: ' + e.message);
+      }
+    };
+  });
 }
 
+// Hjälper: extrahera rimlig titel ur assistenttext
+function inferTitleFromText(text='') {
+  // 1) Om svar innehåller punktlista → ta första punkten
+  const bullet = text.match(/^[\-\•\*]\s*(.+)$/m);
+  if (bullet && bullet[1]) return bullet[1].trim();
+
+  // 2) Plocka första raden/meningen
+  const line = text.split('\n').map(s => s.trim()).find(Boolean) || text.trim();
+  const sentence = (line.split(/(?<=\.)\s|(?<!\w)\n/)[0] || line).trim();
+
+  // 3) Rensa prefix typ “Huvuduppgift:”
+  return sentence
+    .replace(/^Huvuduppgift:\s*/i, '')
+    .replace(/^Gör så här:\s*/i, '')
+    .replace(/^Next:\s*/i, '')
+    .replace(/^Förslag:\s*/i, '')
+    .slice(0, 120);
+}
+
+// Hjälper: text du markerat i chatten (om någon)
+function getSelectionTextIn(container) {
+  const sel = window.getSelection && window.getSelection();
+  if (!sel || sel.rangeCount === 0) return '';
+  const range = sel.getRangeAt(0);
+  if (!container.contains(range.commonAncestorContainer)) return '';
+  return sel.toString();
+}
 function escapeHtml(s=''){ return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) }
 
 async function sendChat() {
