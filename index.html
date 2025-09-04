@@ -39,27 +39,18 @@
 <div class="card">
   <h3>Ny task</h3>
   <form id="f">
-    <div class="row">
-      <input name="title" placeholder="Titel (obligatorisk)" required style="flex:2"/>
-      <input name="estimate_min" type="number" value="30" min="5" step="5" style="width:130px" title="Estimat i minuter"/>
-      <select name="impact" title="Impact 1–5">
-        <option value="3" selected>Impact 3</option>
-        <option value="5">Impact 5</option>
-        <option value="4">Impact 4</option>
-        <option value="2">Impact 2</option>
-        <option value="1">Impact 1</option>
-      </select>
-      <input name="deadline_at" type="datetime-local" title="Deadline (valfri)"/>
-      <label><input type="checkbox" name="blocking"/> Blocking</label>
-    </div>
-    <div class="row" style="margin-top:8px">
-      <textarea name="notes" rows="2" placeholder="Notes (valfritt)" style="flex:1"></textarea>
-    </div>
-    <div class="row" style="margin-top:10px;align-items:center">
-      <button class="primary">Skapa</button>
-      <span id="fmsg" class="muted"></span>
-    </div>
-  </form>
+  <div class="row">
+    <input name="title" placeholder="Titel (obligatorisk)" required style="flex:2"/>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <textarea name="notes" rows="2" placeholder="Notes (valfritt)" style="flex:1"></textarea>
+  </div>
+  <div class="row" style="margin-top:10px;align-items:center">
+    <button class="primary">Skapa</button>
+    <span id="fmsg" class="muted"></span>
+  </div>
+</form>
+
   <small class="muted">AI fyller på impact/estimate/blocking/deadline automatiskt strax efter skapad task.</small>
 </div>
 
@@ -200,21 +191,15 @@ document.getElementById('f').onsubmit = async (ev)=>{
   ev.preventDefault();
   const fd = new FormData(ev.target);
   const body = {
-    title: fd.get('title'),
-    estimate_min: Number(fd.get('estimate_min')||30),
-    impact: Number(fd.get('impact')||3),
-    deadline_at: fd.get('deadline_at') ? new Date(fd.get('deadline_at')).toISOString() : null,
-    blocking: !!fd.get('blocking'),
-    notes: fd.get('notes') || null
-  };
-  const msg = document.getElementById('fmsg');
-  msg.textContent = 'Skickar…';
-  try{
-    await api('/api/tasks', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(body)
-    });
+  title: fd.get('title'),
+  notes: fd.get('notes') || null
+};
+await api('/api/tasks', {
+  method:'POST',
+  headers:{'Content-Type':'application/json'},
+  body: JSON.stringify(body)
+});
+
     msg.textContent = 'Skapad ✅ (AI berikar strax)';
     ev.target.reset();
     setTimeout(()=>loadTasks(true), 1200); // ge classify-task lite tid
