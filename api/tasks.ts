@@ -19,7 +19,7 @@ export default async function handler(req: any, res: any) {
     // Spara BARA title/notes – låt AI sätta resten
     const { data, error } = await supabase
       .from("tasks")
-      .insert([{ title, notes }])
+      .insert([{ title, notes, status: 'todo' }])
       .select("id,title,status")
       .single();
     if (error) return res.status(500).json({ error: error.message });
