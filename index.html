@@ -84,6 +84,18 @@
   <div id="wn" style="margin-top:12px"></div>
 </div>
 
+<!-- Chat -->
+<div class="card">
+  <h3 style="margin:0 0 8px 0">Chat</h3>
+  <div id="chat" style="border:1px solid #eee;border-radius:10px;padding:12px;height:260px;overflow:auto;background:#fff"></div>
+  <div class="row" style="margin-top:8px;align-items:center">
+    <input id="chatInput" placeholder="Säg vad du behöver…" style="flex:1"/>
+    <button id="micBtn" class="ghost" title="Tala">🎤</button>
+    <button id="sendBtn" class="primary">Skicka</button>
+  </div>
+  <small class="muted">Tips: Säg t.ex. “lägg till ‘maila Electrolux om royalty’ med not ‘före fredag’”.</small>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -281,11 +293,114 @@ function renderPhaseBadge(){
   const phaseSv = phase === 'morning' ? 'morgon' : (phase === 'afternoon' ? 'eftermiddag' : 'kväll');
   el.textContent = `${isWeekend ? 'helg' : 'vardag'} · ${weekdayShort} · ${phaseSv} (${String(hour).padStart(2,'0')}:00)`;
 }
+
+<script>
+/* ===== Chat helpers ===== */
+const chatEl = document.getElementById('chat');
+const chatInput = document.getElementById('chatInput');
+const sendBtn = document.getElementById('sendBtn');
+const micBtn = document.getElementById('micBtn');
+
+let chatHistory = []; // [{role:'user'|'assistant', content:'...'}]
+
+function renderChat() {
+  chatEl.innerHTML = chatHistory.map(m => `
+    <div style="margin:6px 0; display:flex; ${m.role==='user'?'justify-content:flex-end':''}">
+      <div style="max-width:80%; padding:8px 10px; border:1px solid #eee; border-radius:10px; background:${m.role==='user'?'#111':'#fafafa'}; color:${m.role==='user'?'#fff':'#111'}">
+        ${escapeHtml(m.content).replace(/\n/g,'<br/>')}
+      </div>
+    </div>
+  `).join('');
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
+
+function escapeHtml(s=''){ return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) }
+
+async function sendChat() {
+  const text = (chatInput.value || '').trim();
+  if (!text) return;
+  chatInput.value = '';
+
+  chatHistory.push({ role: 'user', content: text });
+  renderChat();
+
+  try {
+    const r = await api('/api/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ messages: chatHistory })
+    });
+    const reply = r.reply || 'Ok.';
+    chatHistory.push({ role: 'assistant', content: reply });
+    renderChat();
+
+    // Kolla om svaret innehåller <ADD_TASK>{...}</ADD_TASK>
+    const added = await maybeAddTaskFromReply(reply);
+    if (added) {
+      toast('Task skapad via chat ✅');
+      await loadTasks(true);
+    }
+  } catch (e) {
+    chatHistory.push({ role: 'assistant', content: 'Kunde inte svara just nu.' });
+    renderChat();
+  }
+}
+
+async function maybeAddTaskFromReply(reply) {
+  const m = reply.match(/<ADD_TASK>([\s\S]*?)<\/ADD_TASK>/);
+  if (!m) return false;
+  try {
+    const obj = JSON.parse(m[1]);
+    if (!obj || !obj.title) return false;
+    await api('/api/tasks', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ title: obj.title, notes: obj.notes || null })
+    });
+    return true;
+  } catch(_e) {
+    console.warn('ADD_TASK parse failed', _e);
+    return false;
+  }
+}
+
+// Wire-up
+sendBtn.onclick = sendChat;
+chatInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') sendChat(); });
+
+/* ===== Speech-to-text (MVP via Web Speech API) ===== */
+let recognizer = null;
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognizer = new SR();
+  recognizer.lang = 'sv-SE';
+  recognizer.interimResults = false;
+  recognizer.maxAlternatives = 1;
+
+  recognizer.onresult = (e) => {
+    const text = e.results?.[0]?.[0]?.transcript || '';
+    if (text) { chatInput.value = text; chatInput.focus(); }
+    micBtn.textContent = '🎤';
+  };
+  recognizer.onstart = ()=> { micBtn.textContent = '■'; };
+  recognizer.onend = ()=> { micBtn.textContent = '🎤'; };
+  recognizer.onerror = ()=> { micBtn.textContent = '🎤'; toast('Mikrofonfel'); };
+  micBtn.onclick = ()=> { try { recognizer.start(); } catch {} };
+} else {
+  micBtn.disabled = true;
+  micBtn.title = 'Inte stödd i denna browser';
+}
+</script>
+
+// init
+loadTasks();
 // init
 loadTasks();
 renderPhaseBadge();
-// valfritt: uppdatera badge varje hel timme
-setInterval(renderPhaseBadge, 60 * 1000); // uppdatera varje minut så den rullar över korrekt
+setInterval(renderPhaseBadge, 60 * 1000);
+// valfritt: kör en välkomstrad i chatten
+chatHistory.push({ role:'assistant', content:'Hej! Säg vad du behöver. Lägg till uppgifter genom att skriva “lägg till …”.' });
+renderChat();
 </script>
 </body>
 </html>
