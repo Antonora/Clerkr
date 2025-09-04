@@ -1,21 +1,17 @@
-import { Client } from "pg";
+import { createClient } from "@supabase/supabase-js";
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
 export default async function handler(req: any, res: any) {
-  if (req.method !== "POST") return res.status(405).end();
-  const { title, estimate_min = 30, impact = 3, deadline_at = null, notes = null } = req.body || {};
+  if (req.method !== "POST") return res.status(405).json({ error: "Only POST" });
+  const { title, estimate_min = 30, impact = 3, deadline_at = null, notes = null, blocking = false } = req.body || {};
   if (!title) return res.status(400).json({ error: "title required" });
 
-  const client = new Client({ connectionString: process.env.SUPABASE_DB_URL });
-  await client.connect();
-  try {
-    const q = `insert into tasks (title, estimate_min, impact, deadline_at, notes)
-               values ($1,$2,$3,$4,$5) returning id,title,estimate_min,impact,deadline_at,status`;
-    const { rows } = await client.query(q, [title, estimate_min, impact, deadline_at, notes]);
-    res.status(200).json(rows[0]);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "insert failed" });
-  } finally {
-    await client.end();
-  }
+  const { data, error } = await supabase
+    .from("tasks")
+    .insert([{ title, estimate_min, impact, deadline_at, notes, blocking }])
+    .select("id,title,estimate_min,impact,deadline_at,status")
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(200).json(data);
 }
