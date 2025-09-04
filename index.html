@@ -142,26 +142,32 @@ function renderTasks(){
 
   // Action-knappar
   el.querySelectorAll('button[data-action]').forEach(btn=>{
-    btn.onclick = async ()=>{
-      const tr = btn.closest('tr');
-      const id = tr.getAttribute('data-id');
-      const status = btn.getAttribute('data-action');
-      const label = btn.textContent;
-      btn.disabled = true; btn.textContent = '...';
-      try{
-        await api('/api/update-task', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ id, status: status==='done'?'done':status })
-        });
-        toast(`Uppdaterad: ${label}`);
-        await loadTasks(true);
-      }catch(e){
-        alert('Kunde inte uppdatera: ' + e.message);
-      }finally{
-        btn.disabled = false;
-      }
-    };
+   btn.onclick = async ()=>{
+  const tr = btn.closest('tr');
+  const id = tr.getAttribute('data-id');
+  const status = btn.getAttribute('data-action');
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = '...';
+  try{
+    await api('/api/update-task', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id, status })
+    });
+    // Optimistiskt: ta bort raden om done
+    if(status === 'done'){
+      cache.items = (cache.items||[]).filter(x => x.id !== id);
+      renderTasks();
+    } else {
+      await loadTasks(true);
+    }
+  }catch(e){
+    alert('Kunde inte uppdatera: ' + e.message);
+  }finally{
+    btn.disabled = false;
+  }
+};
+
   });
 }
 
