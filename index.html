@@ -73,8 +73,11 @@
 
 <!-- Vad nu? -->
 <div class="card">
-  <h3>Vad nu?</h3>
-  <div class="row" style="align-items:center">
+  <div class="row" style="align-items:center;justify-content:space-between">
+    <h3 style="margin:0">Vad nu?</h3>
+    <div id="phaseBadge" class="muted" title="Tidsguidning"></div>
+  </div>
+  <div class="row" style="align-items:center;margin-top:8px">
     <button id="what" class="primary">Kör prioritering</button>
     <span id="wnmsg" class="muted"></span>
   </div>
@@ -254,9 +257,35 @@ document.getElementById('what').onclick = async ()=>{
     msg.textContent = '';
   }
 };
+function getPhaseNowStockholm(){
+  // beräkna timme i Europe/Stockholm oavsett användarens lokala TZ
+  const fmt = new Intl.DateTimeFormat('sv-SE', { timeZone:'Europe/Stockholm', hour:'2-digit', hour12:false, weekday:'short' });
+  const parts = fmt.formatToParts(new Date());
+  const hour = Number(parts.find(p=>p.type==='hour')?.value || '0');
+  const weekdayShort = parts.find(p=>p.type==='weekday')?.value || 'mån';
 
+  // 0=sön i JS, men här kör vi enkel vardag/helg via svensk förkortning
+  const helg = ['lör','sön'].includes(weekdayShort.toLowerCase());
+
+  let phase = 'morning';
+  if (hour >= 12 && hour < 17) phase = 'afternoon';
+  else if (hour >= 17 || hour < 6) phase = 'evening';
+
+  return { hour, weekdayShort, isWeekend: helg, phase };
+}
+
+function renderPhaseBadge(){
+  const el = document.getElementById('phaseBadge');
+  if (!el) return;
+  const { hour, weekdayShort, isWeekend, phase } = getPhaseNowStockholm();
+  const phaseSv = phase === 'morning' ? 'morgon' : (phase === 'afternoon' ? 'eftermiddag' : 'kväll');
+  el.textContent = `${isWeekend ? 'helg' : 'vardag'} · ${weekdayShort} · ${phaseSv} (${String(hour).padStart(2,'0')}:00)`;
+}
 // init
 loadTasks();
+renderPhaseBadge();
+// valfritt: uppdatera badge varje hel timme
+setInterval(renderPhaseBadge, 60 * 1000); // uppdatera varje minut så den rullar över korrekt
 </script>
 </body>
 </html>
