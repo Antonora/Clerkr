@@ -1,8 +1,7 @@
 {
-  "name": "clerkr",
-  "private": true,
   "dependencies": {
     "openai": "^4.58.1",
-    "pg": "^8.11.5"
+    "pg": "^8.11.5",
+    "@supabase/supabase-js": "^2.45.0"
   }
 }
