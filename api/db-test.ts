@@ -1,10 +1,9 @@
 import { Client } from "pg";
-
 export default async function handler(req: any, res: any) {
   try {
     const client = new Client({
       connectionString: process.env.SUPABASE_DB_URL,
-      ssl: { rejectUnauthorized: false } // <- viktigt för Supabase
+      ssl: { rejectUnauthorized: false }
     });
     await client.connect();
     const { rows } = await client.query("select now() as now");
