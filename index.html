@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Clerkr</title>
+  <style>
+    body{font-family:system-ui,Arial,sans-serif;max-width:900px;margin:24px auto;padding:0 12px}
+    h1{margin:0 0 16px}
+    form, .card {border:1px solid #eee;border-radius:12px;padding:16px;margin:12px 0}
+    button{padding:10px 14px;border-radius:10px;border:1px solid #ddd;cursor:pointer}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid #f0f0f0;padding:8px;text-align:left}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    input,select{padding:8px;border:1px solid #ddd;border-radius:8px}
+    .pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#f6f6f6;margin-right:6px}
+    .danger{color:#b00020}
+  </style>
+</head>
+<body>
+  <h1>Clerkr</h1>
+
+  <div class="card">
+    <h3>Ny task</h3>
+    <form id="f">
+      <div class="row">
+        <input name="title" placeholder="Titel" required style="flex:2" />
+        <input name="estimate_min" type="number" value="30" style="width:120px"/>
+        <select name="impact">
+          <option value="3">Impact 3</option>
+          <option value="5">Impact 5</option>
+          <option value="4">Impact 4</option>
+          <option value="2">Impact 2</option>
+          <option value="1">Impact 1</option>
+        </select>
+        <input name="deadline_at" type="datetime-local" />
+        <label><input type="checkbox" name="blocking"/> Blocking</label>
+      </div>
+      <br/>
+      <button>Skapa</button> <span id="fmsg"></span>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <h3 style="margin:0">Tasks</h3>
+      <button id="refresh">Uppdatera</button>
+    </div>
+    <div id="tasks">Laddar…</div>
+  </div>
+
+  <div class="card">
+    <h3>Vad nu?</h3>
+    <button id="what">Kör prioritering</button>
+    <div id="wn"></div>
+  </div>
+
+<script>
+const api = (p, opt={}) => fetch(p, opt).then(r=>r.json());
+
+async function loadTasks(){
+  const el = document.getElementById('tasks');
+  try{
+    const r = await api('/api/tasks'); // vår GET-variant
+    if(r.error){ el.innerHTML = `<div class="danger">${r.error}</div>`; return; }
+    const rows = (r.items||[]).map(t=>`
+      <tr>
+        <td>${t.title}</td>
+        <td>${t.estimate_min||''}</td>
+        <td>${t.impact||''}</td>
+        <td>${t.deadline_at? new Date(t.deadline_at).toLocaleString() : ''}</td>
+        <td><span class="pill">${t.status}</span></td>
+      </tr>`).join('');
+    el.innerHTML = `<table>
+      <thead><tr><th>Title</th><th>Est</th><th>Impact</th><th>Deadline</th><th>Status</th></tr></thead>
+      <tbody>${rows||''}</tbody></table>` || 'Inga tasks ännu';
+  }catch(e){ el.innerHTML = `<div class="danger">${e.message}</div>`; }
+}
+
+document.getElementById('refresh').onclick = loadTasks;
+
+document.getElementById('f').onsubmit = async (ev)=>{
+  ev.preventDefault();
+  const fd = new FormData(ev.target);
+  const body = {
+    title: fd.get('title'),
+    estimate_min: Number(fd.get('estimate_min')||30),
+    impact: Number(fd.get('impact')||3),
+    deadline_at: fd.get('deadline_at') ? new Date(fd.get('deadline_at')).toISOString() : null,
+    blocking: !!fd.get('blocking')
+  };
+  const msg = document.getElementById('fmsg');
+  msg.textContent = 'Skickar…';
+  try{
+    const r = await api('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(r.error){ msg.textContent = r.error; msg.className='danger'; }
+    else { msg.textContent = 'Skapad ✅'; ev.target.reset(); loadTasks(); }
+  }catch(e){ msg.textContent = e.message; msg.className='danger'; }
+};
+
+document.getElementById('what').onclick = async ()=>{
+  const el = document.getElementById('wn');
+  el.textContent = 'Prioriterar…';
+  try{
+    const r = await api('/api/what-now',{method:'POST'}); // om din handler kräver POST
+    if(r.error){ el.innerHTML = `<div class="danger">${r.error}</div>`; return; }
+    const p = r.primary_task || {};
+    const alts = (r.alternatives||[]).map(a=>`<li>${a.title} (${a.duration_min} min)</li>`).join('');
+    el.innerHTML = `
+      <p><b>Huvuduppgift:</b> ${p.title} (${p.duration_min} min)</p>
+      <p><b>Varför:</b> ${p.why||''}</p>
+      ${alts? `<p><b>Alternativ:</b><ul>${alts}</ul></p>`:''}
+      <p><b>Next:</b> ${r.next_step?.action||''} ${r.next_step?.details? '— '+r.next_step.details:''}</p>
+    `;
+  }catch(e){ el.innerHTML = `<div class="danger">${e.message}</div>`; }
+};
+
+loadTasks();
+</script>
+</body>
+</html>
