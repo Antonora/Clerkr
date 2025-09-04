@@ -197,22 +197,25 @@ document.getElementById('f').onsubmit = async (ev)=>{
   ev.preventDefault();
   const fd = new FormData(ev.target);
   const body = {
-  title: fd.get('title'),
-  notes: fd.get('notes') || null
-};
-await api('/api/tasks', {
-  method:'POST',
-  headers:{'Content-Type':'application/json'},
-  body: JSON.stringify(body)
-});
-
+    title: fd.get('title'),
+    notes: fd.get('notes') || null
+  };
+  const msg = document.getElementById('fmsg');
+  msg.textContent = 'Skickar…';
+  try{
+    await api('/api/tasks', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
     msg.textContent = 'Skapad ✅ (AI berikar strax)';
     ev.target.reset();
-    setTimeout(()=>loadTasks(true), 1200); // ge classify-task lite tid
+    setTimeout(()=>loadTasks(true), 1200); // hämta listan igen
   }catch(e){
     msg.textContent = e.message; msg.className='danger';
   }
 };
+
 
 document.getElementById('what').onclick = async ()=>{
   const el = document.getElementById('wn');
