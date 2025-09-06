@@ -465,6 +465,24 @@ chatInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') sendChat(); });
     content: 'Hej! Säg vad du behöver. Lägg till uppgifter genom att skriva "lägg till …".'
   });
   renderChat();
+  
+  // === MiniDebug ===
+(function(){
+  const box = document.createElement('div');
+  box.id = 'debugBox';
+  box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;max-height:40vh;overflow:auto;background:#000;color:#0f0;font:12px/1.4 ui-monospace,monospace;padding:8px;border-radius:8px;opacity:.9;z-index:99999;display:none';
+  document.body.appendChild(box);
+  function logLine(type, msg){ const d=new Date().toLocaleTimeString(); box.innerHTML += `[${d}] ${type}: ${msg}<br/>`; box.scrollTop = box.scrollHeight; }
+  window.__debugShow = (on=true)=> { box.style.display = on?'block':'none'; };
+  const origLog = console.log, origErr = console.error;
+  console.log = (...a)=>{ origLog(...a); logLine('LOG', a.map(x=> (typeof x==='object'? JSON.stringify(x): String(x))).join(' ')); };
+  console.error = (...a)=>{ origErr(...a); logLine('ERR', a.map(x=> (typeof x==='object'? JSON.stringify(x): String(x))).join(' ')); };
+  window.addEventListener('error', e => logLine('ONERROR', e.message));
+  window.addEventListener('unhandledrejection', e => logLine('REJECT', (e.reason && e.reason.message) || String(e.reason)));
+  // visa boxen om ?debug finns i URL
+  if (location.search.includes('debug')) window.__debugShow(true);
+})();
+  
 </script>
 </body>
 </html>
