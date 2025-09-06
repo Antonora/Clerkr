@@ -466,23 +466,60 @@ chatInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') sendChat(); });
   });
   renderChat();
   
-  // === MiniDebug ===
-(function(){
-  const box = document.createElement('div');
-  box.id = 'debugBox';
-  box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;max-height:40vh;overflow:auto;background:#000;color:#0f0;font:12px/1.4 ui-monospace,monospace;padding:8px;border-radius:8px;opacity:.9;z-index:99999;display:none';
-  document.body.appendChild(box);
-  function logLine(type, msg){ const d=new Date().toLocaleTimeString(); box.innerHTML += `[${d}] ${type}: ${msg}<br/>`; box.scrollTop = box.scrollHeight; }
-  window.__debugShow = (on=true)=> { box.style.display = on?'block':'none'; };
-  const origLog = console.log, origErr = console.error;
-  console.log = (...a)=>{ origLog(...a); logLine('LOG', a.map(x=> (typeof x==='object'? JSON.stringify(x): String(x))).join(' ')); };
-  console.error = (...a)=>{ origErr(...a); logLine('ERR', a.map(x=> (typeof x==='object'? JSON.stringify(x): String(x))).join(' ')); };
-  window.addEventListener('error', e => logLine('ONERROR', e.message));
-  window.addEventListener('unhandledrejection', e => logLine('REJECT', (e.reason && e.reason.message) || String(e.reason)));
-  // visa boxen om ?debug finns i URL
-  if (location.search.includes('debug')) window.__debugShow(true);
-})();
   
+</script>
+<script id="minidebug">
+(function(){
+  try {
+    // Panel
+    var box = document.createElement('div');
+    box.id = 'debugBox';
+    box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;max-height:40vh;overflow:auto;background:#000;color:#0f0;font:12px/1.4 ui-monospace,monospace;padding:8px;border-radius:8px;opacity:.92;z-index:2147483647;display:block;box-shadow:0 4px 16px rgba(0,0,0,.3)';
+    box.innerHTML = '[MiniDebug] startar…<br/>';
+    document.body.appendChild(box);
+
+    // Toggle-knapp
+    var btn = document.createElement('button');
+    btn.textContent = '🐞';
+    btn.title = 'Visa/Dölj debug';
+    btn.style.cssText = 'position:fixed;right:8px;bottom:8px;width:42px;height:42px;border-radius:50%;border:1px solid #ccc;background:#fff;z-index:2147483647';
+    btn.onclick = function(){
+      box.style.display = (box.style.display === 'none') ? 'block' : 'none';
+    };
+    document.body.appendChild(btn);
+
+    function fmtArg(a){
+      if (a instanceof Error) return a.stack || a.message;
+      if (typeof a === 'object') { try { return JSON.stringify(a); } catch { return String(a); } }
+      return String(a);
+    }
+    function logLine(type, args){
+      var d = new Date().toLocaleTimeString();
+      box.innerHTML += '['+d+'] '+type+': '+args.map(fmtArg).join(' ')+'<br/>';
+      box.scrollTop = box.scrollHeight;
+    }
+
+    // Exponera helpers globalt
+    window.__debugShow = function(on){ box.style.display = on ? 'block' : 'none'; };
+    window.__debugClear = function(){ box.innerHTML = ''; };
+
+    // Hooka console + globala fel
+    var origLog = console.log.bind(console);
+    var origErr = console.error.bind(console);
+    console.log = function(){ origLog.apply(console, arguments); logLine('LOG', Array.from(arguments)); };
+    console.error = function(){ origErr.apply(console, arguments); logLine('ERR', Array.from(arguments)); };
+    window.addEventListener('error', function(e){ logLine('ONERROR', [e.message]); });
+    window.addEventListener('unhandledrejection', function(e){
+      var r = e.reason;
+      logLine('REJECT', [r && (r.message || r.stack || String(r))]);
+    });
+
+    console.log('MiniDebug redo');
+  } catch (e) {
+    // Sista utväg på mobil: visa ett alert
+    alert('MiniDebug failed: ' + (e && e.message));
+  }
+})();
 </script>
 </body>
 </html>
